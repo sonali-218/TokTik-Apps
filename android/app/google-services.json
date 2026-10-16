@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "675459793875",
+    "project_id": "clase23-firebase-demo",
+    "storage_bucket": "clase23-firebase-demo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:675459793875:android:ecdb26c7ac6b550b91e526",
+        "android_client_info": {
+          "package_name": "com.example.toktik"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3B_h2sZFIqWUcvscnsK3jkPIONPt-niI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

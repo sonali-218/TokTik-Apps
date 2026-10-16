@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Publicaciones del feed (el archivo vive en Storage; aquí sus datos).
+    match /posts/{postId} {
+      // Cualquier usuario con sesión ve todo el feed.
+      allow read: if request.auth != null;
+
+      // Crear: solo a nombre propio, tipo válido, descripción no vacía y
+      // contadores en cero. Se valida aquí además de en el formulario,
+      // porque el formulario no protege la base de datos.
+      // createdAt debe ser la hora del servidor (FieldValue.serverTimestamp):
+      // nadie puede inventar una fecha futura para quedar primero.
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['caption', 'mediaUrl',
+             'type', 'storagePath', 'authorUid', 'authorEmail', 'sizeBytes',
+             'likes', 'views', 'likedBy', 'createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.storagePath.matches('posts/' + request.auth.uid + '/.*')
+        && request.resource.data.type in ['video', 'photo']
+        && request.resource.data.caption is string
+        && request.resource.data.caption.size() > 0
+        && request.resource.data.caption.size() <= 300
+        && request.resource.data.likes == 0
+        && request.resource.data.views == 0
+        && request.resource.data.likedBy == []
+        && request.resource.data.createdAt == request.time;
+
+      // Actualizar: solo dos operaciones, cada una de UN usuario sobre SÍ MISMO.
+      //  1) Ver: sumar exactamente 1 vista.
+      //  2) Like / quitar like: agregar o quitar SU uid de likedBy y mover
+      //     el contador en +1 / -1. Nadie puede dar dos likes, ni dar o
+      //     quitar likes a nombre de otro, ni inflar el contador.
+      allow update: if request.auth != null && (isView() || isLikeToggle());
+
+      function isView() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+          && request.resource.data.views == resource.data.views + 1;
+      }
+
+      function isLikeToggle() {
+        let uid = request.auth.uid;
+        let before = resource.data.get('likedBy', []);
+        let after = request.resource.data.likedBy;
+        let changesOk = request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['likes', 'likedBy']);
+        let addsLike = !(uid in before)
+          && after.toSet() == before.toSet().union([uid].toSet())
+          && request.resource.data.likes == resource.data.likes + 1;
+        let removesLike = (uid in before)
+          && after.toSet() == before.toSet().difference([uid].toSet())
+          && request.resource.data.likes == resource.data.likes - 1;
+        return changesOk && after is list && (addsLike || removesLike);
+      }
+
+      // Borrar: solo el autor.
+      allow delete: if request.auth != null
+        && resource.data.authorUid == request.auth.uid;
+    }
+  }
+}

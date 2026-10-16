@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Ruta: posts/<uid del autor>/<archivo>
+    match /posts/{uid}/{fileName} {
+      // Cualquier usuario con sesión puede ver los archivos.
+      allow read: if request.auth != null;
+
+      // Solo el dueño de la carpeta sube, solo imágenes o videos, máx. 100 MB.
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 100 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType.matches('video/.*'));
+
+      // No se reemplazan archivos; solo el dueño los borra.
+      allow update: if false;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
